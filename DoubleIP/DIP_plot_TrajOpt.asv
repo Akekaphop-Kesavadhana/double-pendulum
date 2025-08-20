@@ -1,0 +1,178 @@
+% function data = plotPendulumCart(t,z,u,p)
+% 
+% x = z(1,:);
+% q = z(2,:);
+% dx = z(3,:);
+% dq = z(4,:);
+% 
+% [energy, potential, kinetic] = cartPoleEnergy(z,p);
+% 
+% subplot(3,2,1);
+% plot(t,x)
+% ylabel('x')
+% 
+% subplot(3,2,2);
+% plot(t,q)
+% ylabel('q')
+% 
+% subplot(3,2,3);
+% plot(t,dx)
+% ylabel('dx')
+% 
+% subplot(3,2,4);
+% plot(t,dq)
+% ylabel('dq')
+% 
+% subplot(3,2,5)
+% plot(t,u)
+% ylabel('u')
+% xlabel('t')
+% 
+% subplot(3,2,6); hold on;
+% plot(t,potential,'b-','LineWidth',1)
+% plot(t,kinetic,'r-','LineWidth',1)
+% plot(t,energy,'k-','LineWidth',2)
+% ylabel('energy')
+% xlabel('t')
+% legend('potential','kinetic','total');
+% 
+% data.energy = energy;
+% data.potential = potential;
+% data.kinetic = kinetic;
+% 
+% data.x = x;
+% data.q = q;
+% data.dx = dx;
+% data.dq = dq;
+% 
+% end
+
+function data = DIP_plot_TrajOpt(t,z,u,p)
+
+x          = z(1,:);
+theta1     = z(2,:);
+theta2     = z(3,:);
+x_dot      = z(4,:);
+theta1_dot = z(5,:);
+theta2_dot = z(6,:);
+
+% Cart Position Plot
+subplot(3,3,1)
+plot(t,x,'LineWidth',1)
+title('Cart Position')
+xlabel('Time-t [s]')
+ylabel('x [m]')
+% xlim([0 10])
+% ylim([0 3])
+xlim tight
+grid on
+
+% Lower Pendulum Angle Plot
+subplot(3,3,2)
+plot(t,theta1,'LineWidth',1)
+title('Lower Pendulum Angle')
+xlabel('Time-t [s]')
+ylabel('\theta_1 [rad]')
+% xlim([0 10])
+% ylim([-0.1 0.1])
+xlim tight
+grid on
+
+% Upper Pendulum Angle Plot
+subplot(3,3,3)
+plot(t,theta2,'LineWidth',1)
+title('Upper Pendulum Angle')
+xlabel('Time-t [s]')
+ylabel('\theta_2 [rad]')
+% xlim([0 10])
+% ylim([-0.1 0.1])
+xlim tight
+grid on
+
+% Cart Velocity Plot
+subplot(3,3,4)
+plot(t,x_dot,'LineWidth',1)
+title('Cart Velocity')
+xlabel('Time-t [s]')
+ylabel('$\dot{x}$ [m/s]', 'Interpreter', 'latex')
+% xlim([0 10])
+% ylim([-1 1.5])
+xlim tight
+grid on
+
+% Lower Pendulum Angular Velocity Plot
+subplot(3,3,5)
+plot(t,theta1_dot,'LineWidth',1)
+title('Lower Pendulum Anglular Velocity')
+xlabel('Time-t [s]')
+ylabel('$\dot{\theta}_1$ [rad/s]', 'Interpreter', 'latex')
+% xlim([0 10])
+% ylim([-0.15 0.1])
+xlim tight
+grid on
+
+% Upper Pendulum Angular Velocity Plot
+subplot(3,3,6)
+plot(t,theta2_dot,'LineWidth',1)
+title('Upper Pendulum Angular Velocity')
+xlabel('Time-t [s]')
+ylabel('$\dot{\theta}_2$ [rad/s]', 'Interpreter', 'latex')
+% xlim([0 10])
+% ylim([-0.15 0.05])
+xlim tight
+grid on
+
+% Control Input
+dp   = 0.01;    % pulley radius [m]
+R    = 1.0;     % winding resistance [Ω]
+Ktau = 0.163;   % torque constant [N·m/A]
+Ke   = 0.163;   % back-EMF constant [V·s/rad]
+G    = 0.7;     % gear ratio
+vBus = 12;      % Supply limit [V]
+
+Kff  = (R*dp)/(G*Ktau);
+Kemf = (G*Ke)/dp;
+KVF  = (G*Ktau)/(dp*R);
+Kvf  = (G^2*Ktau*Ke)/(dp^2*R);
+
+voltage = Kff*u + Kemf*x_dot; 
+u_applied = KVF*voltage - Kvf*x_dot;
+subplot(3,3,7)
+plot(t,u,'r-o', 'LineWidth',3)
+hold on
+plot(t, u_applied,'b-','LineWidth',1);
+hold off
+title('Control Input')
+xlabel('Time-t [s]')
+ylabel('Force [N]')
+% xlim([0 10])
+% ylim([-0.15 0.05])
+legend('Commanded Control Signal (F_{com})', 'Achieved Force (F_{ach})')
+xlim tight
+grid on
+
+% Voltage
+subplot(3,3,8)
+plot(t,voltage,'LineWidth',1) 
+title('Motor Voltage');
+xlabel('Time-t [s]');
+ylabel('Voltage [V]');  
+% xlim([0 10])
+% ylim([-0.15 0.05])
+% legend('Commanded Control Signal-u', 'Achieved Force-F_u')
+xlim tight
+grid on
+
+data.x          = x;
+data.theta1     = theta1;
+data.theta2     = theta2;
+data.x_dot      = x_dot;
+data.theta1_dot = theta1_dot;
+data.theta2_dot = theta2_dot; 
+
+
+
+
+
+
+end

@@ -1,0 +1,121 @@
+% function Force_app = DIP_motor_system_dynamics(velocity,u_com)
+% 
+% % INPUTS:
+% %     cart velocity  = v = x_dot 
+% %     control signal-u = F = The commanded force to be applied to the cart   
+% % OUTPUTS: 
+% %     voltage = The control signal in terms of a voltage for the motor
+% 
+% % wm   = 3;               % Motor angular velocity   [rad/s]
+% % wp   = 4;               % Pulley angular velocity  [rad/s]
+% % dp   = 0.0254;          % Pulley diameter          [m]
+% % R    = 1.9;             % Motor winding resistance [Ohm]
+% % Ktau = 0.104511;        % Motor torque Constant    [N*m/A]
+% % Ke   = 0.105042;        % Motor back-EMF Constant  [V/(rad/s)]
+% % % % Ir = 4.801855e-5;     % Rotor inertia Constant   [N*m/s^2] NOT USED
+% % G    = wm/wp;           % Gear ratio 
+% % %                         % G>1 pulley spins slower than motor 
+% % %                         % G<1 pulley spins faster than motor
+% 
+% dp   = 0.01;            % Pulley radius         [m]
+% R    = 1.0;             % Motor winding resistance [Ohm]
+% Ktau = 0.163;           % Motor torque Constant    [N*m/A]
+% Ke   = 0.163;           % Motor back-EMF Constant  [V/(rad/s)]
+% G    = 100;             % Gear ratio 
+%                         % G>1 pulley spins slower than motor 
+%                         % G<1 pulley spins faster than motor
+% 
+% Kff  = (R*dp)/(G*Ktau); % Feedforward Gain
+% Kemf = (G*Ke)/dp;       % Back-emf Gain
+% 
+% KVF  = (G*Ktau)/(dp*R);
+% Kvf  = ((G)^2*Ktau*Ke)/((dp)^2*R);
+% vBus = 24;
+% 
+% % x_dot = velocity(:).';    % force row shape
+% % u_com = u_com(:).';
+% 
+% x_dot = velocity(:);      % Nx1 (col)
+% u_com = u_com(:);         % Nx1 (col)
+% n     = numel(u_com);
+% 
+% % voltage   = zeros(n,1);   % Nx1 (col)
+% Force_app = zeros(n,1);
+% 
+% for k = 1:n
+%     % voltage(k)   = max(min(Kff*u_com(k) + Kemf*x_dot(k),vBus), -vBus)
+%     % Force_app(k) = KVF*voltage(k) - Kvf*x_dot(k);
+%     Force_app(k) = KVF*max(min(Kff*u_com(k) + Kemf*x_dot(k),vBus), -vBus) - Kvf*x_dot(k);
+% end
+% 
+% end
+
+% function u_applied = DIP_motor_system_dynamics(velocity,u_com)
+%     dp   = 0.01;    % pulley radius [m]
+%     R    = 1.0;     % winding resistance [Ω]
+%     Ktau = 0.163;   % torque constant [N·m/A]
+%     Ke   = 0.163;   % back-EMF constant [V·s/rad]
+%     G    = 100;     % gear ratio
+%     vBus = 24;      % supply limit [V]
+% 
+%     Kff  = (R*dp)/(G*Ktau);
+%     Kemf = (G*Ke)/dp;
+%     KVF  = (G*Ktau)/(dp*R);
+%     Kvf  = (G^2*Ktau*Ke)/(dp^2*R);
+% 
+%     % --- one-line scalar computation ---
+%     voltage   = max( min(Kff*u_com + Kemf*velocity,  vBus), -vBus );
+%     u_applied = KVF*voltage - Kvf*velocity;
+% end
+
+function u_applied = DIP_motor_system_dynamics(v, u_com, act)
+% v      : cart velocity [m/s] (scalar or same size as u_com)
+% u_com  : requested cart force [N] (scalar or [1,n])
+% act    : optional params (struct). All have sensible defaults below.
+
+    arguments
+        v   double
+        u_com double
+        act.rp   (1,1) double = 0.01     % pulley radius [m]
+        act.R    (1,1) double = 1.0      % winding resistance [ohm]
+        act.Kt   (1,1) double = 0.163    % torque constant [N·m/A]
+        act.Ke   (1,1) double = 0.163    % back-EMF constant [V·s/rad]
+        act.G    (1,1) double = 2        % overall gear ratio
+        act.etaG (1,1) double = 1.0      % gearbox efficiency (0..1)
+        act.busV (1,1) double = 24       % DC bus limit [V] (e.g., 12..24)
+        act.Imax (1,1) double = Inf      % optional current limit [A]
+        act.Fmax (1,1) double = 20       % target |force| ≤ 20 N
+    end
+
+    % 1) Clamp the *requested* force to ±Fmax
+    F_req = clamp_sym(u_com, act.Fmax);
+
+    % 2) Actuator gains (cart space)
+    Kff  = (act.R*act.rp)/(act.G*act.Kt);          % V per N
+    Kemf = (act.G*act.Ke)/act.rp;                  % V per (m/s)
+    KVF  = (act.etaG*act.G*act.Kt)/(act.rp*act.R); % N per V
+    Kvf  = KVF * Kemf;                             % N per (m/s)
+
+    % 3) Ideal terminal voltage to achieve F_req at velocity v
+    V_req = Kff.*F_req + Kemf.*v;
+
+    % 4) Bus clamp (±busV), no max/min
+    V = clamp_sym(V_req, act.busV);
+
+    % 5) Optional current limit, recompute V consistently
+    if isfinite(act.Imax)
+        I = (V - Kemf.*v) ./ act.R;
+        I = clamp_sym(I, act.Imax);
+        V = I.*act.R + Kemf.*v;
+        V = clamp_sym(V, act.busV);
+    end
+
+    % 6) Delivered cart force
+    u_applied = KVF.*V - Kvf.*v;
+end
+
+function y = clamp_sym(x, lim)
+    y = x;
+    y(x >  lim) =  lim;
+    y(x < -lim) = -lim;
+end

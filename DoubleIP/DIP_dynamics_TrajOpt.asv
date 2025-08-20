@@ -1,0 +1,73 @@
+function dz = DIP_dynamics_TrajOpt(z,u_com,p)
+
+% INPUTS:
+%     z = [6, n] = [x;theta1;theta2;x_dot;theta1_dot;theta2_dot] = state of system
+%     u = [1, n] = horizontal force applied to the cart
+%     p = parameter struct
+%         .g  = gravity
+%         .m0 = cart mass
+%         .m1 = pole1 mass
+%         .m2 = pole2 mass
+%         .l1 = pole1 length
+%         .l2 = pole2 length
+% OUTPUTS: 
+%     dz = dz/dt = time derivative of state
+
+% Unpack parameters
+m0 = p.m0;  m1 = p.m1;  m2 = p.m2;
+L1 = p.L1;  L2 = p.L2;
+l1 = p.l1;  l2 = p.l2;
+I1 = p.I1;  I2 = p.I2;
+g  = p.g;
+
+n  = size(z,2);   % number of grid points
+dz = zeros(6,n);  % pre‑allocate derivative matrix
+
+% Put this before the for-loop
+act = struct('busV',24,'G',2,'Fmax',30);               % set your actuator prefs
+if isfield(p,'act'), act = localMerge(act,p.act); end  % optional: merge from p.act
+F_all = DIP_motor_system_dynamics(z(4,:), u_com, act);        % 1×n delivered forces
+
+% ------------------  Loop over collocation points ------------------ %
+for k = 1:n
+    % state components at this point
+    x           = z(1,k);
+    theta1      = z(2,k);
+    theta2      = z(3,k);
+    x_dot       = z(4,k);
+    theta1_dot  = z(5,k);
+    theta2_dot  = z(6,k);
+
+    D = [m0+m1+m2                (m1*l1+m2*L1)*cos(theta1)     m2*l2*cos(theta2);
+        (m1*l1+m2*L1)*cos(theta1) m1*(l1)^2+m2*(L1)^2+I1       m2*L1*l2*cos(theta1-theta2);
+         m2*l2*cos(theta2)        m2*L1*l2*cos(theta1-theta2)  m2*(l2)^2+I2];
+
+    C = [0     -(m1*l1+m2*L1)*sin(theta1)*theta1_dot    -m2*l2*sin(theta2)*theta2_dot;
+         0                      0                        m2*L1*l2*sin(theta1-theta2)*theta2_dot;
+         0     -m2*L1*l2*sin(theta1-theta2)*theta1_dot   0];
+    
+    G = [0;
+       -(m1*l1+m2*L1)*g*sin(theta1);
+        -m2*g*l2*sin(theta2)];
+
+    H = [1; 0; 0];
+
+    % ------------------ Theoretical control input ------------------ %
+    % u_applied = u_com(k);
+
+    % ------------------ Incorporate motor and gearbox dynamics ------------------ %
+    % u_applied = DIP_motor_system_dynamics(x_dot,u_com(k));
+    u_applied = F_all(k);
+
+    % ------------------ Apply the control input onto the system dynamics ------------------ %
+    % qdd = D^-1*(-C*q_dot - G + H*u)
+    q_dot = [x_dot; theta1_dot; theta2_dot];
+    q_dd  = inv(D)*(-C*q_dot - G + H*u_applied);
+
+    % ------------------ Assemble time derivative of full state ------------------ %
+    dz(:,k) = [q_dot; q_dd];
+
+end
+
+end
+

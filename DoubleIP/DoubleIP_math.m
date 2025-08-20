@@ -1,0 +1,41 @@
+close all; clear; clc; 
+
+
+syms m0 m1 m2 l1 l2 L1 L2 I1 I2 g u(t) x(t) theta1(t) theta2(t) % for odeToVectorField ONLY
+% syms m0 m1 m2 l1 l2 L1 L2 I1 I2 g u(t) x(t) u_t theta1 theta2 theta1_dot theta2_dot x_double_dot theta1_double_dot theta2_double_dot
+% eqn = diff(y,2) + y^2*t == 3*t;
+% V = odeToVectorField(eqn);
+
+% dY1dt = Y(2)
+% dY2dt = 3t - t(Y1)^2
+
+eqn1_5 = (m0 + m1 + m2)*diff(x,2) + (m1*l1 + m2*L2)*cos(theta1)*diff(theta1,2) + m2*l2*cos(theta2)*diff(theta2,2) - (m1*l1 + m2*L1)*sin(theta1)*(diff(theta1,1))^2 - m2*l2*sin(theta2)*(diff(theta2,1))^2 == u(t);
+% eqn1_5_f = odeToVectorField(eqn1_5)
+
+eqn1_4 = (m1*(l1)^2 + m2*(L1)^2 + I1)*diff(theta1,2) + (m1*l1 + m2*L1)*cos(theta1)*diff(x,2) + m2*L1*l2*cos(theta1-theta2)*diff(theta2,2) + m2*L1*l2*sin(theta1-theta2)*(diff(theta2,1))^2 - g*(m1*l1 + m2*L1)*sin(theta1) == 0;
+% eqn1_4_f = odeToVectorField(eqn1_4)
+
+eqn1_3 = m2*l2*cos(theta2)*diff(x,2) + m2*L1*l2*cos(theta1-theta2)*diff(theta1,2) + (m2*(l2)^2 + I2)*diff(theta2,2) - m2*L1*l2*sin(theta1-theta2)*(diff(theta1,1))^2 - m2*g*l2*sin(theta2) == 0;
+% eqn1_3_f = odeToVectorField(eqn1_3)
+
+sdot = odeToVectorField(eqn1_5,eqn1_4,eqn1_3)
+
+% theta1_double_dot = solve((m0 + m1 + m2)*x_double_dot + (m1*l1 + m2*L2)*cos(theta1)*theta1_double_dot + m2*l2*cos(theta2)*theta2_double_dot - (m1*l1 + m2*L1)*sin(theta1)*(theta1_dot)^2 - m2*l2*sin(theta2)*(theta2_dot)^2 == u_t, theta1_double_dot)
+% 
+% theta2_double_dot = solve((m1*(l1)^2 + m2*(L1)^2 + I1)*theta1_double_dot + (m1*l1 + m2*L1)*cos(theta1)*x_double_dot + m2*L1*l2*cos(theta1-theta2)*theta2_double_dot + m2*L1*l2*sin(theta1-theta2)*(theta2_dot)^2 - g*(m1*l1 + m2*L1)*sin(theta1) == 0, theta2_double_dot)
+% 
+% x_double_dot = solve(m2*l2*cos(theta2)*x_double_dot + m2*L1*l2*cos(theta1-theta2)*theta1_double_dot + (m2*(l2)^2 + I2)*theta2_double_dot - m2*L1*l2*sin(theta1-theta2)*(theta1_dot)^2 - m2*g*l2*sin(theta2) == 0, x_double_dot)
+
+
+%% Linearize
+
+eqn1_5_L = (m0 + m1 + m2)*diff(x,2) + (m1*l1 + m2*L2)*diff(theta1,2) + m2*l2*diff(theta2,2) - (m1*l1 + m2*L1)*theta1*(diff(theta1,1))^2 - m2*l2*theta2*(diff(theta2,1))^2 == u(t);
+
+eqn1_4_L = (m1*(l1)^2 + m2*(L1)^2 + I1)*diff(theta1,2) + (m1*l1 + m2*L1)*diff(x,2) + m2*L1*l2*(1+(theta1*theta2))*diff(theta2,2) + m2*L1*l2*(theta1-theta2)*(diff(theta2,1))^2 - g*(m1*l1 + m2*L1)*theta1 == 0;
+
+eqn1_3_L = m2*l2*diff(x,2) + m2*L1*l2*(1+(theta1*theta2))*diff(theta1,2) + (m2*(l2)^2 + I2)*diff(theta2,2) - m2*L1*l2*(theta1-theta2)*(diff(theta1,1))^2 - m2*g*l2*theta2 == 0;
+
+% V = odeToVectorField(eqn1_5_L,eqn1_4_L,eqn1_3_L)
+
+
+
