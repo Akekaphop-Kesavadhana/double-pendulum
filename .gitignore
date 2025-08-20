@@ -1,6 +1,9 @@
 # Prerequisites
 *.d
 
+# Ignore avi files
+*.avi
+
 # Compiled Object files
 *.slo
 *.lo
