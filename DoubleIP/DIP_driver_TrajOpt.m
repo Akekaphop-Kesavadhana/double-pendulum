@@ -4,7 +4,7 @@ addpath ../../
 
 L1 = 0.75;
 L2 = 0.5;
-m1 = 1.5;
+m1 = 100000;
 m2 = 0.5;
 
 p.m0 = 2.0;               % Mass of cart [kg] [data type: struct array]
